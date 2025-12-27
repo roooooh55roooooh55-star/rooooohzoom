@@ -8,6 +8,30 @@ export interface VideoInsight {
   tags: string[];
 }
 
+export async function generateVideoMetadata(currentCategory: string): Promise<{ title: string, tags: string[] }> {
+  const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+  try {
+    const response = await ai.models.generateContent({
+      model: 'gemini-3-flash-preview',
+      contents: `أنت خبير تسويق محتوى رعب. اقترح عنواناً جذاباً ومرعباً باللغة العربية ومجموعة من 5 هاشتاجات لفيديو يندرج تحت قسم: "${currentCategory}". أرجع النتيجة كـ JSON بهذا الشكل: {"title": "العنوان هنا", "tags": ["tag1", "tag2"]}`,
+      config: {
+        responseMimeType: "application/json",
+        responseSchema: {
+          type: Type.OBJECT,
+          properties: {
+            title: { type: Type.STRING },
+            tags: { type: Type.ARRAY, items: { type: Type.STRING } }
+          },
+          required: ["title", "tags"]
+        }
+      }
+    });
+    return JSON.parse(response.text || '{"title": "كابوس جديد", "tags": ["رعب"]}');
+  } catch (e) {
+    return { title: "عنوان مرعب مقترح", tags: ["#رعب_الحديقة", "#هجمات"] };
+  }
+}
+
 export async function suggestTags(title: string, category: string): Promise<string[]> {
   const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
   try {
@@ -26,7 +50,6 @@ export async function suggestTags(title: string, category: string): Promise<stri
 export async function getRecommendedFeed(allVideos: Video[], interactions: UserInteractions): Promise<string[]> {
   const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
   
-  // تحليل الفئات المفضلة بناءً على الإعجابات
   const likedVideos = allVideos.filter(v => interactions.likedIds.includes(v.id));
   const favoriteCategories = Array.from(new Set(likedVideos.map(v => v.category)));
   

@@ -13,14 +13,17 @@ export interface Video {
   tags?: string[];
   created_at?: string;
   public_id: string;
+  external_link?: string; // رابط الانتقال المخصص
+  isFeatured?: boolean; // هل الفيديو رائج/مميز؟
 }
 
 export interface UserInteractions {
   likedIds: string[];
   dislikedIds: string[];
   savedIds: string[];
-  savedCategoryNames: string[]; // تتبع الأقسام المحفوظة
+  savedCategoryNames: string[]; 
   watchHistory: { id: string; progress: number }[];
+  downloadedIds: string[]; // تتبع الفيديوهات المحملة
 }
 
 export enum AppView {
@@ -32,5 +35,6 @@ export enum AppView {
   HIDDEN = 'hidden',
   PRIVACY = 'privacy',
   ADMIN = 'admin',
-  CATEGORY = 'category'
+  CATEGORY = 'category',
+  OFFLINE = 'offline'
 }
