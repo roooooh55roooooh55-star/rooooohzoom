@@ -20,7 +20,7 @@ export async function suggestTags(title: string, category: string): Promise<stri
       }
     });
     return JSON.parse(response.text || '[]');
-  } catch (e) { return ["رعب", "غموض"]; }
+  } catch (e) { return ["رعب", "رعب حقيقي"]; }
 }
 
 export async function getRecommendedFeed(allVideos: Video[], interactions: UserInteractions): Promise<string[]> {

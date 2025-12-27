@@ -4,7 +4,7 @@ export type VideoType = 'short' | 'long';
 export interface Video {
   id: string;
   video_url: string;
-  poster_url?: string; // رابط الصورة المصغرة (البوستر)
+  poster_url?: string;
   type: VideoType;
   likes: number;
   views: number;
@@ -19,6 +19,7 @@ export interface UserInteractions {
   likedIds: string[];
   dislikedIds: string[];
   savedIds: string[];
+  savedCategoryNames: string[]; // تتبع الأقسام المحفوظة
   watchHistory: { id: string; progress: number }[];
 }
 
@@ -30,5 +31,6 @@ export enum AppView {
   UNWATCHED = 'unwatched',
   HIDDEN = 'hidden',
   PRIVACY = 'privacy',
-  ADMIN = 'admin'
+  ADMIN = 'admin',
+  CATEGORY = 'category'
 }

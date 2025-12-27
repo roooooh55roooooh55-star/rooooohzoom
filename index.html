@@ -25,36 +25,50 @@
       ::-webkit-scrollbar { display: none; }
       * { scrollbar-width: none; -webkit-tap-highlight-color: transparent; box-sizing: border-box; }
       
-      @keyframes neon-breath {
-        0%, 100% { opacity: 0.5; box-shadow: 0 0 10px var(--neon-color); }
-        50% { opacity: 1; box-shadow: 0 0 25px var(--neon-color); }
-      }
-      
-      .neon-border {
-        border: 2px solid var(--neon-color);
-        box-shadow: 0 0 15px var(--neon-color);
+      /* تأثير النيون الأبيض الليد الفاخر */
+      .neon-white-led {
+        border: 1.5px solid rgba(255, 255, 255, 0.9);
+        box-shadow: 0 0 10px rgba(255, 255, 255, 0.5), 
+                    inset 0 0 5px rgba(255, 255, 255, 0.2);
+        background: rgba(255, 255, 255, 0.03);
         transition: all 0.3s ease;
+        text-shadow: 0 0 5px rgba(255, 255, 255, 0.5);
       }
       
-      .neon-border-active {
-        animation: neon-breath 2s infinite ease-in-out;
+      .neon-white-led:active {
+        box-shadow: 0 0 20px rgba(255, 255, 255, 1), 
+                    inset 0 0 10px rgba(255, 255, 255, 0.5);
+        transform: scale(0.92);
+        background: rgba(255, 255, 255, 0.1);
       }
 
-      .loading-bar {
-        position: fixed;
-        top: 0;
-        left: 0;
-        height: 2px;
-        background: #ef4444;
-        z-index: 2000;
-        transition: width 0.3s ease;
+      /* حركة الحلقة المستمرة البطيئة جداً من اليسار لليمين */
+      @keyframes marquee-infinite-slow {
+        0% { transform: translateX(0); }
+        100% { transform: translateX(50%); } /* التحرك لليمين */
       }
-      
-      .fade-in { animation: fadeIn 0.5s ease-out forwards; }
-      @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
-      
+
+      .animate-marquee-train {
+        display: flex;
+        width: max-content;
+        animation: marquee-infinite-slow 80s linear infinite;
+        will-change: transform;
+      }
+
+      /* توقف الحركة عند التفاعل اليدوي أو الهوفر */
+      .nav-container:hover .animate-marquee-train,
+      .nav-container:active .animate-marquee-train {
+        animation-play-state: paused;
+      }
+
       .scrollbar-hide::-webkit-scrollbar {
         display: none;
+      }
+      
+      /* تدرج جانبي لإخفاء حواف الشريط */
+      .nav-mask {
+        mask-image: linear-gradient(to right, transparent, black 15%, black 85%, transparent);
+        -webkit-mask-image: linear-gradient(to right, transparent, black 15%, black 85%, transparent);
       }
     </style>
     <script type="importmap">

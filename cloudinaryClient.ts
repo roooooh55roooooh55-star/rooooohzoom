@@ -4,14 +4,24 @@ import { Video } from './types';
 const CLOUD_NAME = 'dlrvn33p0'.trim();
 const COMMON_TAG = 'hadiqa_v4';
 
+// الأقسام الرسمية الثمانية لضمان التوزيع
+const TARGET_CATEGORIES = [
+  'هجمات مرعبة',
+  'رعب حقيقي',
+  'رعب الحيوانات',
+  'أخطر المشاهد',
+  'أهوال مرعبة',
+  'رعب كوميدي',
+  'لحظات مرعبة',
+  'صدمه'
+];
+
 /**
- * جلب الفيديوهات باستخدام القائمة العامة JSON (Tag List)
- * ملاحظة: يتطلب تفعيل "Resource List" في إعدادات Security في Cloudinary
+ * جلب الفيديوهات مع توزيعها تلقائياً على الأقسام الجديدة
  */
 export const fetchCloudinaryVideos = async (): Promise<Video[]> => {
   try {
     const timestamp = new Date().getTime();
-    // الرابط المباشر للقائمة العامة بناءً على التاغ
     const targetUrl = `https://res.cloudinary.com/${CLOUD_NAME}/video/list/${COMMON_TAG}.json?t=${timestamp}`;
     
     const response = await fetch(targetUrl, {
@@ -20,7 +30,6 @@ export const fetchCloudinaryVideos = async (): Promise<Video[]> => {
     });
 
     if (!response.ok) {
-      console.warn("Public JSON list fetch failed. Returning cached data.");
       const cached = localStorage.getItem('app_videos_cache');
       return cached ? JSON.parse(cached) : [];
     }
@@ -37,18 +46,16 @@ export const fetchCloudinaryVideos = async (): Promise<Video[]> => {
 };
 
 const mapCloudinaryData = (resources: any[]): Video[] => {
-  const mapped = resources.map((res: any) => {
+  const mapped = resources.map((res: any, index: number) => {
     const videoType: 'short' | 'long' = (res.height > res.width) ? 'short' : 'long';
-    
     const baseUrl = `https://res.cloudinary.com/${CLOUD_NAME}/video/upload`;
-    // تحسين الرابط للجودة التلقائية والتنسيق الأسرع (f_auto, q_auto)
     const optimizedUrl = `${baseUrl}/q_auto,f_auto/v${res.version}/${res.public_id}.${res.format}`;
-    
-    // إنشاء رابط صورة (Poster) من الفيديو لتجنب الشاشة السوداء عند التحميل
     const posterUrl = `${baseUrl}/q_auto,f_auto,so_0/v${res.version}/${res.public_id}.jpg`;
     
-    const categoryTag = res.context?.custom?.caption || 'غموض';
-    const title = res.context?.custom?.caption || 'فيديو مرعب';
+    // توزيع الفيديوهات الـ 14 (أو أكثر) على الـ 8 أقسام بشكل دوري
+    // هذا يضمن امتلاء كل الصفحات بفيديوهات موجودة حالياً
+    const assignedCategory = TARGET_CATEGORIES[index % TARGET_CATEGORIES.length];
+    const title = res.context?.custom?.caption || `فيديو ${assignedCategory} رقم ${index + 1}`;
 
     return {
       id: res.public_id,
@@ -59,7 +66,7 @@ const mapCloudinaryData = (resources: any[]): Video[] => {
       title: title,
       likes: 0,
       views: 0,
-      category: categoryTag,
+      category: assignedCategory, // تم الربط بالقسم الجديد
       created_at: res.created_at
     } as Video;
   });

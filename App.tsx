@@ -5,7 +5,6 @@ import { fetchCloudinaryVideos } from './cloudinaryClient.ts';
 import { getRecommendedFeed } from './geminiService.ts';
 import AppBar from './AppBar.tsx';
 import MainContent from './MainContent.tsx';
-import { GoogleGenAI, Type } from "@google/genai";
 
 const ShortsPlayerOverlay = lazy(() => import('./ShortsPlayerOverlay.tsx'));
 const LongPlayerOverlay = lazy(() => import('./LongPlayerOverlay.tsx'));
@@ -15,38 +14,39 @@ const TrendPage = lazy(() => import('./TrendPage.tsx'));
 const SavedPage = lazy(() => import('./SavedPage.tsx'));
 const PrivacyPage = lazy(() => import('./PrivacyPage.tsx'));
 const HiddenVideosPage = lazy(() => import('./HiddenVideosPage.tsx'));
+const CategoryPage = lazy(() => import('./CategoryPage.tsx'));
 
-const DEFAULT_CATEGORIES = [
-  'رعب حقيقي ✴️', 
-  'رعب الحيوانات 🔱', 
-  'هجمات مرعبة ✴️', 
-  'أخطر المشاهد 🔱', 
-  'رعب الحديقة ⚠️', 
-  'رعب كوميدي 😂 ⚠️', 
-  'لحظات مرعبة'
+// القائمة الرسمية المعتمدة من الصورة - 8 تصنيفات
+export const OFFICIAL_CATEGORIES = [
+  'هجمات مرعبة',
+  'رعب حقيقي',
+  'رعب الحيوانات',
+  'أخطر المشاهد',
+  'أهوال مرعبة',
+  'رعب كوميدي',
+  'لحظات مرعبة',
+  'صدمه'
 ];
 
 const App: React.FC = () => {
   const [currentView, setCurrentView] = useState<AppView>(AppView.HOME);
+  const [activeCategory, setActiveCategory] = useState<string>('');
   const [rawVideos, setRawVideos] = useState<Video[]>([]); 
   const [loading, setLoading] = useState(true);
   const [selectedShort, setSelectedShort] = useState<{ video: Video, list: Video[] } | null>(null);
   const [selectedLong, setSelectedLong] = useState<{ video: Video, list: Video[] } | null>(null);
   const [toast, setToast] = useState<string | null>(null);
-  const [isSearchOpen, setIsSearchOpen] = useState(false);
-  const [searchQuery, setSearchQuery] = useState('');
-  const [searchResults, setSearchResults] = useState<Video[]>([]);
-  const [isSearchingAI, setIsSearchingAI] = useState(false);
   const [isTitleYellow, setIsTitleYellow] = useState(false);
 
   const isOverlayActive = useMemo(() => !!selectedShort || !!selectedLong, [selectedShort, selectedLong]);
 
   const [interactions, setInteractions] = useState<UserInteractions>(() => {
     try {
-      const saved = localStorage.getItem('al-hadiqa-interactions-v5');
-      return saved ? JSON.parse(saved) : { likedIds: [], dislikedIds: [], savedIds: [], watchHistory: [] };
+      const saved = localStorage.getItem('al-hadiqa-interactions-v10');
+      const data = saved ? JSON.parse(saved) : null;
+      return data || { likedIds: [], dislikedIds: [], savedIds: [], savedCategoryNames: [], watchHistory: [] };
     } catch (e) {
-      return { likedIds: [], dislikedIds: [], savedIds: [], watchHistory: [] };
+      return { likedIds: [], dislikedIds: [], savedIds: [], savedCategoryNames: [], watchHistory: [] };
     }
   });
 
@@ -55,35 +55,54 @@ const App: React.FC = () => {
     setTimeout(() => setToast(null), 3000);
   };
 
-  const loadData = async (isHardRefresh = false) => {
+  const loadData = useCallback(async (isHardRefresh = false) => {
     if (isHardRefresh) setLoading(true);
     try {
       const data = await fetchCloudinaryVideos();
-      // محرك التوصية الذكي: يعطي الأولوية للفئات التي أعجب بها المستخدم
+      // يتم توزيع الفيديوهات على التصنيفات داخل الـ client حالياً لضمان التقسيم
       const recommendedOrder = await getRecommendedFeed(data, interactions);
       const orderedVideos = recommendedOrder
         .map(id => data.find(v => v.id === id || v.public_id === id))
         .filter((v): v is Video => !!v);
 
-      const remaining = data.filter(v => !recommendedOrder.includes(v.id));
+      const remaining = data.filter(v => !recommendedOrder.includes(v.id) && !recommendedOrder.includes(v.public_id));
       setRawVideos([...orderedVideos, ...remaining]);
     } catch (err) {
-      console.error(err);
+      console.error("Load Error:", err);
     } finally {
       setLoading(false);
-      if (isHardRefresh) setTimeout(() => setIsTitleYellow(false), 2500);
+      if (isHardRefresh) setIsTitleYellow(false);
     }
+  }, [interactions]);
+
+  useEffect(() => {
+    loadData(false);
+  }, []);
+
+  useEffect(() => { 
+    localStorage.setItem('al-hadiqa-interactions-v10', JSON.stringify(interactions)); 
+  }, [interactions]);
+
+  const handleCategoryView = (cat: string) => {
+    setActiveCategory(cat);
+    setCurrentView(AppView.CATEGORY);
+    setSelectedShort(null);
+    setSelectedLong(null);
+    window.scrollTo(0, 0);
   };
 
-  useEffect(() => { loadData(false); }, []);
-  useEffect(() => { localStorage.setItem('al-hadiqa-interactions-v5', JSON.stringify(interactions)); }, [interactions]);
-
-  // تحديث الترتيب والواجهة بالكامل عند إغلاق أي فيديو
-  useEffect(() => {
-    if (!selectedShort && !selectedLong && rawVideos.length > 0) {
-      loadData(false);
-    }
-  }, [selectedShort, selectedLong]);
+  const toggleCategorySave = (cat: string) => {
+    setInteractions(prev => {
+      const isSaved = prev.savedCategoryNames.includes(cat);
+      if (isSaved) {
+        showToast("تمت إزالة القسم ⚰️");
+        return { ...prev, savedCategoryNames: prev.savedCategoryNames.filter(c => c !== cat) };
+      } else {
+        showToast("تم حفظ القسم 🖤");
+        return { ...prev, savedCategoryNames: [...prev.savedCategoryNames, cat] };
+      }
+    });
+  };
 
   const updateWatchHistory = (id: string, progress: number) => {
     setInteractions(prev => {
@@ -100,7 +119,7 @@ const App: React.FC = () => {
       if (p.likedIds.includes(id)) return p;
       return { ...p, likedIds: [...p.likedIds, id], dislikedIds: p.dislikedIds.filter(x => x !== id) };
     });
-    showToast("الأرواح تعتز بإعجابك! 💀");
+    showToast("تم الإعجاب! 💀");
   };
 
   const handleDislike = (id: string) => {
@@ -109,13 +128,9 @@ const App: React.FC = () => {
       dislikedIds: Array.from(new Set([...p.dislikedIds, id])),
       likedIds: p.likedIds.filter(x => x !== id)
     }));
-    showToast("تم نفي الفيديو إلى النسيان ⚰️");
+    showToast("تم الاستبعاد ⚰️");
     setSelectedShort(null);
     setSelectedLong(null);
-  };
-
-  const handleSwitchLongVideo = (v: Video) => {
-    setSelectedLong(prev => prev ? { ...prev, video: v } : null);
   };
 
   const renderContent = () => {
@@ -123,14 +138,28 @@ const App: React.FC = () => {
     const longsOnly = rawVideos.filter(v => v.type === 'long');
 
     switch(currentView) {
+      case AppView.CATEGORY:
+        return (
+          <Suspense fallback={null}>
+            <CategoryPage 
+              category={activeCategory} 
+              allVideos={rawVideos} 
+              isSaved={interactions.savedCategoryNames.includes(activeCategory)}
+              onToggleSave={() => toggleCategorySave(activeCategory)}
+              onPlayShort={(v, l) => setSelectedShort({video:v, list:l})} 
+              onPlayLong={(v) => setSelectedLong({video:v, list:longsOnly})} 
+              onBack={() => setCurrentView(AppView.HOME)} 
+            />
+          </Suspense>
+        );
       case AppView.ADMIN:
-        return <Suspense fallback={null}><AdminDashboard onClose={() => setCurrentView(AppView.HOME)} categories={DEFAULT_CATEGORIES} initialVideos={rawVideos} /></Suspense>;
+        return <Suspense fallback={null}><AdminDashboard onClose={() => setCurrentView(AppView.HOME)} categories={OFFICIAL_CATEGORIES} initialVideos={rawVideos} onNewVideo={(v) => setRawVideos(prev => [v, ...prev])} /></Suspense>;
       case AppView.TREND:
         return <TrendPage onPlayShort={(v, l) => setSelectedShort({video:v, list:l})} onPlayLong={(v) => setSelectedLong({video:v, list:longsOnly})} excludedIds={interactions.dislikedIds} />;
       case AppView.LIKES:
-        return <SavedPage savedIds={interactions.likedIds} allVideos={rawVideos} onPlayShort={(v, l) => setSelectedShort({video:v, list:l})} onPlayLong={(v) => setSelectedLong({video:v, list:longsOnly})} title="الإعجابات" />;
+        return <SavedPage savedIds={interactions.likedIds} savedCategories={[]} allVideos={rawVideos} onPlayShort={(v, l) => setSelectedShort({video:v, list:l})} onPlayLong={(v) => setSelectedLong({video:v, list:longsOnly})} title="الإعجابات" onCategoryClick={handleCategoryView} />;
       case AppView.SAVED:
-        return <SavedPage savedIds={interactions.savedIds} allVideos={rawVideos} onPlayShort={(v, l) => setSelectedShort({video:v, list:l})} onPlayLong={(v) => setSelectedLong({video:v, list:longsOnly})} title="المحفوظات" />;
+        return <SavedPage savedIds={interactions.savedIds} savedCategories={interactions.savedCategoryNames} allVideos={rawVideos} onPlayShort={(v, l) => setSelectedShort({video:v, list:l})} onPlayLong={(v) => setSelectedLong({video:v, list:longsOnly})} title="المحفوظات" onCategoryClick={handleCategoryView} />;
       case AppView.HIDDEN:
         return <HiddenVideosPage interactions={interactions} allVideos={rawVideos} onRestore={(id) => setInteractions(prev => ({...prev, dislikedIds: prev.dislikedIds.filter(x => x !== id)}))} onPlayShort={(v, l) => setSelectedShort({video:v, list:l})} onPlayLong={(v) => setSelectedLong({video:v, list:longsOnly})} />;
       case AppView.PRIVACY:
@@ -139,14 +168,14 @@ const App: React.FC = () => {
         return (
           <MainContent 
             videos={rawVideos} 
-            categoriesList={DEFAULT_CATEGORIES} 
+            categoriesList={OFFICIAL_CATEGORIES} 
             interactions={interactions}
             onPlayShort={(v, l) => setSelectedShort({video:v, list:l.filter(x => x.type === 'short')})}
             onPlayLong={(v, l) => setSelectedLong({video:v, list:l.filter(x => x.type === 'long')})}
+            onCategoryClick={handleCategoryView}
             onHardRefresh={() => loadData(true)}
             loading={loading}
             isTitleYellow={isTitleYellow}
-            onSearchToggle={() => setIsSearchOpen(true)}
             isOverlayActive={isOverlayActive}
           />
         );
@@ -170,6 +199,7 @@ const App: React.FC = () => {
             onClose={() => setSelectedShort(null)} 
             onLike={handleLikeToggle} 
             onDislike={handleDislike} 
+            onCategoryClick={handleCategoryView}
             onSave={(id) => setInteractions(p => p.savedIds.includes(id) ? p : ({...p, savedIds: [...p.savedIds, id]}))} 
             onProgress={updateWatchHistory} 
           />
@@ -184,8 +214,9 @@ const App: React.FC = () => {
             onClose={() => setSelectedLong(null)} 
             onLike={() => handleLikeToggle(selectedLong.video.id)} 
             onDislike={() => handleDislike(selectedLong.video.id)} 
+            onCategoryClick={handleCategoryView}
             onSave={() => setInteractions(p => p.savedIds.includes(selectedLong.video.id) ? p : ({...p, savedIds: [...p.savedIds, selectedLong.video.id]}))} 
-            onSwitchVideo={handleSwitchLongVideo} 
+            onSwitchVideo={(v) => setSelectedLong(p => p ? {...p, video: v} : null)} 
             isLiked={interactions.likedIds.includes(selectedLong.video.id)} 
             isDisliked={interactions.dislikedIds.includes(selectedLong.video.id)} 
             isSaved={interactions.savedIds.includes(selectedLong.video.id)} 

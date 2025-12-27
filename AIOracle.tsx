@@ -14,7 +14,7 @@ const AIOracle: React.FC = () => {
     try {
       const saved = localStorage.getItem('al-hadiqa-ai-history-v4');
       return saved ? JSON.parse(saved) : [
-        { role: 'model', text: 'أهلاً بك في دهاليز الحديقة.. ما الذي يبحث عنه قلبك الشجاع؟' }
+        { role: 'model', text: 'أهلاً بك في نظام الحديقة المرعبة.. ما الذي يبحث عنه قلبك الشجاع؟' }
       ];
     } catch (e) { return []; }
   });
@@ -49,17 +49,17 @@ const AIOracle: React.FC = () => {
           parts: [{ text: m.text }]
         })),
         config: {
-          systemInstruction: 'أنت الحديقة المرعبة AI. ردودك قصيرة، غامضة، ومرعبة جداً باللغة العربية. أنت كيان قديم يسكن هذه الحديقة الرقمية.',
+          systemInstruction: 'أنت نظام الحديقة المرعبة AI. ردودك قصيرة، غامضة، ومرعبة جداً باللغة العربية. أنت كيان قديم يسكن هذا المستودع الرقمي.',
           temperature: 0.9,
           topP: 0.95,
         }
       });
 
-      const modelResponse = response.text || "الأرواح صامتة الآن.. حاول لاحقاً.";
+      const modelResponse = response.text || "النظام صامت الآن.. حاول لاحقاً.";
       setMessages(prev => [...prev, { role: 'model', text: modelResponse }]);
     } catch (error) {
       console.error("AI Error:", error);
-      setMessages(prev => [...prev, { role: 'model', text: "حدث خطأ في استحضار الروح.. الزم الصمت." }]);
+      setMessages(prev => [...prev, { role: 'model', text: "حدث خطأ في النظام.. الزم الصمت." }]);
     } finally {
       setLoading(false);
     }
@@ -71,6 +71,7 @@ const AIOracle: React.FC = () => {
       <button 
         onClick={() => setIsOpen(true)} 
         className="fixed bottom-24 right-6 z-[100] w-14 h-14 bg-red-600 rounded-full shadow-[0_0_20px_rgba(220,38,38,0.8)] border-2 border-red-400 flex items-center justify-center animate-bounce active:scale-90 transition-all"
+        title="الحديقة المرعبة"
       >
         <img src="https://i.top4top.io/p_3643ksmii1.jpg" className="w-10 h-10 rounded-full object-cover" alt="AI Avatar" />
       </button>
@@ -86,7 +87,7 @@ const AIOracle: React.FC = () => {
                 <img src="https://i.top4top.io/p_3643ksmii1.jpg" className="w-10 h-10 rounded-full border-2 border-red-600 relative z-10 object-cover" alt="AI Avatar" />
               </div>
               <div className="flex flex-col">
-                <h2 className="text-sm font-black text-red-600 italic">همسات الحديقة</h2>
+                <h2 className="text-sm font-black text-red-600 italic">الحديقة المرعبة</h2>
                 <span className="text-[8px] text-gray-500 uppercase tracking-widest">Ancient Spirit AI</span>
               </div>
             </div>
@@ -122,7 +123,7 @@ const AIOracle: React.FC = () => {
             {loading && (
               <div className="flex justify-end">
                 <div className="bg-red-950/20 text-red-700 px-4 py-2 rounded-full text-[10px] font-black animate-pulse border border-red-900/10">
-                  الأرواح تكتب...
+                  النظام يحلل...
                 </div>
               </div>
             )}
@@ -137,7 +138,7 @@ const AIOracle: React.FC = () => {
               type="text" 
               value={inputText}
               onChange={(e) => setInputText(e.target.value)}
-              placeholder="اكتب رسالتك للحديقة..." 
+              placeholder="اكتب رسالتك للنظام..." 
               className="flex-1 bg-white/5 border border-white/10 rounded-2xl py-4 px-6 text-white text-sm outline-none focus:border-red-600 transition-colors placeholder:text-gray-600"
             />
             <button 
