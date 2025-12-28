@@ -2,75 +2,78 @@
 import { GoogleGenAI, Type } from "@google/genai";
 import { Video, UserInteractions } from "./types";
 
-export interface VideoInsight {
-  summary: string;
-  horrorLevel: number;
-  tags: string[];
-}
+const APP_CONTEXT = `الهوية: الحديقة المرعبة. المبدأ: تحليل دقيق وواقعي لهجمات الحيوانات المفترسة والأهوال الطبيعية. الأسلوب: سرد سينمائي مرعب بالعامية المصرية.`;
 
-export async function generateVideoMetadata(currentCategory: string): Promise<{ title: string, tags: string[] }> {
+/**
+ * تحليل بصري دقيق للمشهد وتوليد عنوان واقعي يصف الحدث الفعلي
+ */
+export async function analyzeVideoVisualContent(base64Image: string, category: string): Promise<{ title: string, tags: string[] }> {
   const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
   try {
+    const imagePart = {
+      inlineData: { mimeType: 'image/jpeg', data: base64Image.split(',')[1] },
+    };
+    
+    const prompt = `${APP_CONTEXT}
+    قم بتحليل دقيق جداً لهذه اللقطة. ما هو نوع الحيوان المفترس؟ (أسد، نمر، تمساح، إلخ) وماذا يفعل بالضبط؟ (هجوم، مطاردة، زئير).
+    صغ عنواناً واقعياً ومرعباً بالعامية المصرية يصف هذا "الحدث الحقيقي" الذي تراه. 
+    ممنوع ذكر اسم المطور. أرجع JSON: {"title": "العنوان الواقعي"، "tags": ["رعب_الحيوانات", "هجوم"]}`;
+
     const response = await ai.models.generateContent({
-      model: 'gemini-3-flash-preview',
-      contents: `أنت خبير تسويق محتوى رعب. اقترح عنواناً جذاباً ومرعباً باللغة العربية ومجموعة من 5 هاشتاجات لفيديو يندرج تحت قسم: "${currentCategory}". أرجع النتيجة كـ JSON بهذا الشكل: {"title": "العنوان هنا", "tags": ["tag1", "tag2"]}`,
-      config: {
-        responseMimeType: "application/json",
-        responseSchema: {
-          type: Type.OBJECT,
-          properties: {
-            title: { type: Type.STRING },
-            tags: { type: Type.ARRAY, items: { type: Type.STRING } }
-          },
-          required: ["title", "tags"]
-        }
-      }
+      model: 'gemini-3-pro-preview',
+      contents: { parts: [imagePart, { text: prompt }] },
+      config: { responseMimeType: "application/json" }
     });
-    return JSON.parse(response.text || '{"title": "كابوس جديد", "tags": ["رعب"]}');
+
+    const res = JSON.parse(response.text || '{"title": "هجمة غير متوقعة في الحديقة", "tags": ["رعب"]}');
+    return res;
   } catch (e) {
-    return { title: "عنوان مرعب مقترح", tags: ["#رعب_الحديقة", "#هجمات"] };
+    return { title: "واقعة مرعبة خلف أسوار الحديقة", tags: ["#الحديقة_المرعبة"] };
   }
 }
 
-export async function suggestTags(title: string, category: string): Promise<string[]> {
+/**
+ * توليد سرد قصصي واقعي ومزامن للمدة الزمنية
+ */
+export async function generateLongNarration(base64Image: string, category: string, durationSeconds: number): Promise<string> {
   const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
   try {
+    const imagePart = {
+      inlineData: { mimeType: 'image/jpeg', data: base64Image.split(',')[1] },
+    };
+
+    const wordCount = Math.floor(durationSeconds * 2);
+
+    const prompt = `${APP_CONTEXT}
+    أنتِ "حارسة الحديقة المرعبة". حللي المشهد المرعب للحيوان المفترس في الصورة. 
+    اكتبي سردياً بالعامية المصرية يصف الرعب الحقيقي الذي يحدث. 
+    يجب أن يكون النص كافياً للقراءة في ${durationSeconds} ثانية (حوالي ${wordCount} كلمة).
+    ركزي على تفاصيل الهجوم أو الرعب البصري. ممنوع ذكر اسم المطور.`;
+
     const response = await ai.models.generateContent({
-      model: 'gemini-3-flash-preview',
-      contents: `بناءً على عنوان فيديو الرعب: "${title}" والتصنيف: "${category}"، اقترح 5 أوسمة (tags) قصيرة. أرجعها كقائمة JSON فقط.`,
-      config: {
-        responseMimeType: "application/json",
-        responseSchema: { type: Type.ARRAY, items: { type: Type.STRING } }
-      }
+      model: 'gemini-3-pro-preview',
+      contents: { parts: [imagePart, { text: prompt }] },
     });
-    return JSON.parse(response.text || '[]');
-  } catch (e) { return ["رعب", "رعب حقيقي"]; }
+
+    return response.text || "المكان ده ملوش أمان، وكل لقمة هنا بتمنها.. الحديقة بتفتح أبوابها للأهوال.";
+  } catch (e) {
+    return "الأهوال في الحديقة ملهاش نهاية، والحيوانات مستنية اللحظة اللي تخرج فيها من الظلام...";
+  }
 }
 
 export async function getRecommendedFeed(allVideos: Video[], interactions: UserInteractions): Promise<string[]> {
   const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
-  
   const likedVideos = allVideos.filter(v => interactions.likedIds.includes(v.id));
   const favoriteCategories = Array.from(new Set(likedVideos.map(v => v.category)));
-  
   const videoContext = allVideos.map(v => ({ id: v.id, title: v.title, category: v.category }));
   
-  const prompt = `
-    أنت خبير في رعب المحتوى. المستخدم يحب هذه التصنيفات: ${JSON.stringify(favoriteCategories)}.
-    الفيديوهات التي أعجب بها: ${likedVideos.map(v => v.title).join(', ')}.
-    رتب قائمة الـ IDs التالية: ${JSON.stringify(videoContext.map(v => v.id))} 
-    بحيث تظهر الفيديوهات التي تنتمي للتصنيفات المفضلة للمستخدم أولاً، متبوعة بالفيديوهات المشابهة في العنوان.
-    أرجع فقط مصفوفة JSON تحتوي على الـ IDs المرتبة.
-  `;
+  const prompt = `رتب IDs الفيديوهات بناءً على اهتمام المستخدم بتصنيفات: ${JSON.stringify(favoriteCategories)}. الفيديوهات: ${JSON.stringify(videoContext)}. أرجع JSON فقط كقائمة IDs.`;
 
   try {
     const response = await ai.models.generateContent({
       model: 'gemini-3-flash-preview',
       contents: prompt,
-      config: {
-        responseMimeType: "application/json",
-        responseSchema: { type: Type.ARRAY, items: { type: Type.STRING } }
-      }
+      config: { responseMimeType: "application/json" }
     });
     return JSON.parse(response.text || "[]");
   } catch (e) {
